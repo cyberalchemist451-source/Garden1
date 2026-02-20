@@ -1,0 +1,56 @@
+{
+  "id": "default-field",
+  "name": "Qualia Field",
+  "description": "Default 20-acre outdoor simulation environment with oak trees, rocks, and grass",
+  "version": "1.0.0",
+  "terrain": {
+    "size": 285,
+    "seed": 42,
+    "heightScale": 6,
+    "grassDensity": 40000,
+    "dirtPatchCount": 12
+  },
+  "vegetation": {
+    "treeCount": 40,
+    "treeRadius": 130
+  },
+  "rocks": {
+    "count": 25,
+    "maxScale": 3
+  },
+  "lighting": {
+    "sunAngle": 55,
+    "sunIntensity": 1.2,
+    "ambient": 0.35,
+    "fogDensity": 0.003,
+    "timeOfDay": "afternoon"
+  },
+  "robot": {
+    "startPosition": { "x": 0, "y": 0, "z": 0 },
+    "scale": 1.5
+  },
+  "portals": [
+    {
+      "id": "portal-debug-zone",
+      "position": { "x": 30, "y": 0, "z": -20 },
+      "targetEnvironment": "debug-zone",
+      "label": "Debug Zone"
+    }
+  ],
+  "objectMemory": {
+    "contextWindowSize": 100,
+    "decayRate": 0.001
+  },
+  "biologicalLayers": {
+    "eukaryote": { "enabled": true, "particleCount": 200 },
+    "mycelium": { "enabled": true, "initialNodeCount": 30 },
+    "cognitiveLightCone": { "enabled": true, "angle": 60, "range": 30 }
+  },
+  "meta": {
+    "author": "Qualia Collective",
+    "created": "2026-02-14",
+    "tags": ["default", "outdoor", "field"],
+    "portalSupport": true,
+    "snapshotSupport": true
+  }
+}
