@@ -1,18 +1,45 @@
 
-import { LLMRequest, LLMResponse, ToolCall } from './types';
+import { LLMRequest, LLMResponse } from './types';
 import { Guardrails } from './guardrails';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+interface Provider {
+    name: string;
+    url: string;
+    key: string | undefined;
+    model: string;
+}
 
 export class LLMService {
     private static instance: LLMService;
-    private apiKey: string;
+
+    private providers: Provider[] = [
+        {
+            name: 'openrouter',
+            url: OPENROUTER_API_URL,
+            key: process.env.OPENROUTER_API_KEY,
+            model: 'openai/gpt-4o-mini'
+        },
+        {
+            name: 'groq',
+            url: GROQ_API_URL,
+            key: process.env.GROQ_API_KEY,
+            model: 'llama-3.3-70b-versatile'
+        },
+        {
+            name: 'gemini',
+            url: GEMINI_API_URL,
+            key: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+            model: 'gemini-2.0-flash'
+        }
+    ];
 
     private constructor() {
-        this.apiKey = process.env.OPENROUTER_API_KEY || '';
-        if (!this.apiKey) {
-            console.warn('[LLMService] OPENROUTER_API_KEY is missing');
-        }
+        const available = this.providers.filter(p => p.key).map(p => p.name);
+        console.log('[LLMService] Available providers:', available.join(', ') || 'NONE');
     }
 
     static getInstance(): LLMService {
@@ -23,66 +50,91 @@ export class LLMService {
     }
 
     async chat(request: LLMRequest): Promise<LLMResponse> {
-        // 1. Check Guardrails
-        if (!Guardrails.checkRateLimit()) {
-            throw new Error('Rate limit exceeded. Please wait a moment.');
-        }
-        if (!Guardrails.checkBudget()) {
-            throw new Error('Daily token usage limit reached.');
-        }
+        if (!Guardrails.checkRateLimit()) throw new Error('Rate limit exceeded.');
+        if (!Guardrails.checkBudget()) throw new Error('Daily token usage limit reached.');
 
-        // 2. Prepare Request
-        // Default to Claude 3.5 Sonnet via OpenRouter for smarts + speed
-        const model = request.model || 'anthropic/claude-3.5-sonnet';
+        // Try each provider in order
+        for (const provider of this.providers) {
+            if (!provider.key) {
+                console.log(`[LLMService] Skipping ${provider.name} (no key)`);
+                continue;
+            }
 
-        try {
-            const response = await fetch(OPENROUTER_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    'HTTP-Referer': 'http://localhost:3000', // Required by OpenRouter
-                    'X-Title': 'Qualia Simulation',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: model,
+            const model = request.model
+                ? (provider.name === 'openrouter' ? request.model : provider.model)
+                : provider.model;
+
+            try {
+                console.log(`[LLMService] Trying ${provider.name} (${model})...`);
+
+                const headers: Record<string, string> = {
+                    'Authorization': `Bearer ${provider.key}`,
+                    'Content-Type': 'application/json',
+                };
+
+                if (provider.name === 'openrouter') {
+                    headers['HTTP-Referer'] = 'http://localhost:3000';
+                    headers['X-Title'] = 'Qualia Simulation';
+                }
+
+                const body: Record<string, unknown> = {
+                    model,
                     messages: request.messages,
-                    tools: request.tools,
                     temperature: request.temperature ?? 0.7,
-                    max_tokens: request.maxTokens ?? 1024,
-                })
-            });
+                    max_tokens: request.maxTokens ?? request.max_tokens ?? 1024,
+                };
 
-            if (!response.ok) {
-                const error = await response.text();
-                console.error('[LLMService] API Error:', error);
-                throw new Error(`LLM API Error: ${response.statusText}`);
+                // Only add response_format if supported (not Gemini)
+                if (request.response_format && provider.name !== 'gemini') {
+                    body.response_format = request.response_format;
+                }
+
+                if (request.tools) body.tools = request.tools;
+
+                const response = await fetch(provider.url, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.warn(`[LLMService] ${provider.name} failed (${response.status}):`, errorText.slice(0, 200));
+                    continue; // try next provider
+                }
+
+                const data = await response.json();
+                const usage = data.usage;
+                if (usage) Guardrails.consumeTokens(usage.total_tokens);
+
+                const choice = data.choices?.[0];
+                if (!choice) {
+                    console.warn(`[LLMService] ${provider.name} returned no choices`);
+                    continue;
+                }
+
+                let content = choice.message?.content || '';
+
+                // Gemini sometimes wraps JSON in markdown code fences — strip them
+                if (provider.name === 'gemini') {
+                    content = content.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+                }
+
+                console.log(`[LLMService] Success via ${provider.name}`);
+                return {
+                    content,
+                    tool_calls: choice.message?.tool_calls,
+                    usage,
+                    provider: provider.name,
+                    model
+                };
+
+            } catch (err) {
+                console.warn(`[LLMService] ${provider.name} threw an error:`, err);
+                // continue to next
             }
-
-            const data = await response.json();
-
-            // 3. Track Usage
-            const usage = data.usage;
-            if (usage) {
-                Guardrails.consumeTokens(usage.total_tokens);
-            }
-
-            // 4. Parse Response
-            const choice = data.choices[0];
-            const result: LLMResponse = {
-                content: choice.message.content || '',
-                tool_calls: choice.message.tool_calls,
-                usage: usage,
-                provider: 'openrouter',
-                model: model
-            };
-
-            return result;
-
-        } catch (error) {
-            console.error('[LLMService] Chat request failed:', error);
-            // Fallback logic could go here (e.g. try OpenAI directly)
-            throw error;
         }
+
+        throw new Error('All LLM providers failed. Check API keys and connectivity.');
     }
 }

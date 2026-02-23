@@ -12,6 +12,7 @@ import AtlasRobot from '@/components/simulation/AtlasRobot';
 // RobotCognitiveLightCone moved inside AtlasRobot for performance
 import Cabin from '@/components/simulation/Cabin';
 import LogObstacle from '@/components/simulation/LogObstacle';
+import PicnicArea, { PicnicAreaMesh } from '@/components/simulation/PicnicArea';
 
 // ...
 import UserAvatar from '@/components/simulation/UserAvatar';
@@ -79,8 +80,8 @@ export default function SimulationScene() {
     const userState = useSimulationStore(s => s.user);
     const setSitting = useSimulationStore(s => s.setUserSitting);
 
-    const handleSitClick = useCallback((chairPosition: THREE.Vector3) => {
-        setSitting(true, chairPosition);
+    const handleSitClick = useCallback((chairPosition: THREE.Vector3, rotation: number) => {
+        setSitting(true, chairPosition, rotation);
     }, [setSitting]);
 
     const handleStandUp = useCallback(() => {
@@ -289,6 +290,10 @@ export default function SimulationScene() {
 
             {/* Atlas Robot - With Cognitive Awareness */}
             <AtlasRobot />
+
+            {/* Picnic Area — table with toys + log obstacle for fetch missions */}
+            <PicnicArea />
+            <PicnicAreaMesh />
 
             {/* User Avatar - Third Person */}
             <UserAvatar sitting={userState} onStandUp={handleStandUp} />

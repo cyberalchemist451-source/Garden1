@@ -21,6 +21,8 @@ export interface LLMRequest {
     tools?: ToolDefinition[];
     temperature?: number;
     maxTokens?: number;
+    max_tokens?: number; // Alias used by some callers
+    response_format?: { type: 'json_object' | 'text' };
     provider?: 'openrouter' | 'openai' | 'anthropic' | 'google';
     model?: string;
 }

@@ -8,7 +8,9 @@ import RewardsHUD from '@/components/simulation/RewardsHUD';
 import SimulationChat from '@/components/simulation/SimulationChat';
 import ErrorBoundary from '@/components/simulation/ErrorBoundary';
 import ExperienceMonitor from '@/components/simulation/ExperienceMonitor';
-// import CollectiveOrbs3D from '@/components/CollectiveOrbs3D'; // Integrated into scene
+import MemoryMapOverlay from '@/components/simulation/MemoryMapOverlay';
+import PassiveVisionLoop from '@/components/simulation/PassiveVisionLoop';
+import EnvironmentEditor from '@/components/simulation/EnvironmentEditor';
 
 // Dynamic import of the WRAPPER (contains Canvas + Scene)
 // This ensures that ALL 3D code stays on the client side only.
@@ -30,12 +32,10 @@ function Loader() {
 
 export default function SimulationPage() {
     const [showKeys, setShowKeys] = useState(false);
-    // Use store for chat state
     const showChat = useSimulationStore(s => s.isChatOpen);
     const setChatOpen = useSimulationStore(s => s.setChatOpen);
 
     const [mounted, setMounted] = useState(false);
-
     const [debugError, setDebugError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -47,14 +47,11 @@ export default function SimulationPage() {
         const handleRejection = (event: PromiseRejectionEvent) => {
             setDebugError(`Unhandled Promise Rejection: ${event.reason}`);
         };
-
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Open chat on Enter if not already open
             if (e.key === 'Enter' && !useSimulationStore.getState().isChatOpen) {
                 e.preventDefault();
                 setChatOpen(true);
             }
-            // Close chat on Escape
             if (e.key === 'Escape' && useSimulationStore.getState().isChatOpen) {
                 setChatOpen(false);
             }
@@ -101,20 +98,39 @@ export default function SimulationPage() {
                 <KeybindMenu isOpen={showKeys} onToggle={() => setShowKeys(!showKeys)} />
             </div>
 
-            {/* Top Right - Rewards HUD */}
+            {/* Top Right - Rewards HUD (Feature 1: Task & Reward System) */}
             <RewardsHUD />
 
-            {/* Bottom Right - Controls */}
-            <div style={{ position: 'absolute', bottom: 20, right: 20, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', fontSize: '12px', zIndex: 10 }}>
-                <p><strong>User:</strong> WASD/QE | Shift Sprint | F Flex | Right-click Chair</p>
-                <p><strong>Atlas:</strong> IJKL/UO to control robot</p>
-                <p>Scroll to Zoom | Drag to Rotate</p>
+            {/* Bottom Left - Memory Map (Feature 2) */}
+            <MemoryMapOverlay />
+
+            {/* Right side stack - Passive Vision (Feature 3) */}
+            <PassiveVisionLoop />
+
+            {/* Right side stack - World Editor (Feature 4) */}
+            <EnvironmentEditor />
+
+            {/* Bottom Right - Controls legend */}
+            <div style={{
+                position: 'absolute',
+                bottom: 20,
+                right: 20,
+                color: 'rgba(255,255,255,0.35)',
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                zIndex: 10,
+                textAlign: 'right',
+                pointerEvents: 'none',
+            }}>
+                <p><strong style={{ color: 'rgba(255,255,255,0.5)' }}>User:</strong> WASD/QE | Shift Sprint | F Flex | Right-click Chair</p>
+                <p><strong style={{ color: 'rgba(255,255,255,0.5)' }}>Atlas:</strong> IJKL/UO to control robot</p>
+                <p>Scroll to Zoom | Drag to Rotate | Enter to Chat</p>
             </div>
 
             {/* Chat Interface */}
             <SimulationChat isOpen={showChat} onToggle={() => setChatOpen(!showChat)} />
 
-            {/* Experience Monitor - Bottom Right */}
+            {/* Experience Monitor */}
             <ExperienceMonitor />
         </div>
     );

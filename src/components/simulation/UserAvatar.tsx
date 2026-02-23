@@ -10,6 +10,7 @@ interface SittingState {
     isSitting: boolean;
     position?: { x: number; y: number; z: number };
     sittingPosition?: { x: number; y: number; z: number };
+    sittingRotation?: number;
 }
 
 export default function UserAvatar({ sitting, onStandUp }: {
@@ -34,14 +35,18 @@ export default function UserAvatar({ sitting, onStandUp }: {
             if (useSimulationStore.getState().isChatOpen) return;
 
             const key = e.key.toLowerCase();
-            if (['w', 'a', 's', 'd', 'q', 'e', 'f', 'shift', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+            if (['w', 'a', 's', 'd', 'q', 'e', 'f', 'g', 'shift', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
                 e.preventDefault();
                 keys.current.add(key === ' ' ? 'space' : key);
+            }
+            // G = drop carried item
+            if (key === 'g') {
+                useSimulationStore.getState().setUserCarriedObject(null);
             }
         };
         const handleUp = (e: KeyboardEvent) => {
             const key = e.key.toLowerCase();
-            if (['w', 'a', 's', 'd', 'q', 'e', 'f', 'shift', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+            if (['w', 'a', 's', 'd', 'q', 'e', 'f', 'g', 'shift', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
                 e.preventDefault();
                 keys.current.delete(key === ' ' ? 'space' : key);
             }
@@ -303,30 +308,45 @@ export default function UserAvatar({ sitting, onStandUp }: {
         useSimulationStore.getState().setUserPosition(position.current);
     });
 
+    const carriedId = useSimulationStore(s => s.user.carriedObjectId);
+    const toyDataMap: Record<string, { shape: string; color: string }> = {
+        'toy-sphere': { shape: 'sphere', color: '#ef4444' },
+        'toy-cube': { shape: 'cube', color: '#3b82f6' },
+        'toy-pyramid': { shape: 'pyramid', color: '#eab308' },
+    };
+    const toyData = carriedId ? toyDataMap[carriedId] : null;
+
     return (
         <group ref={groupRef} name="userAvatar">
-            {/* Simple humanoid robot */}
             {/* Body */}
             <mesh position={[0, 0.9, 0]} castShadow>
                 <boxGeometry args={[0.4, 0.6, 0.3]} />
                 <meshStandardMaterial color="#2a3f5f" roughness={0.4} metalness={0.6} />
             </mesh>
-
             {/* Head */}
             <mesh position={[0, 1.4, 0]} castShadow>
                 <boxGeometry args={[0.25, 0.25, 0.25]} />
                 <meshStandardMaterial color="#3a5f7f" roughness={0.3} metalness={0.7} />
             </mesh>
-
             {/* Eyes */}
             <mesh position={[0, 1.4, 0.13]}>
                 <boxGeometry args={[0.15, 0.03, 0.01]} />
-                <meshStandardMaterial
-                    color="#00ffff"
-                    emissive="#00ffff"
-                    emissiveIntensity={0.8}
-                />
+                <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={0.8} />
             </mesh>
+
+            {/* Joint spheres: shoulders & hips */}
+            {([-0.27, 0.27] as number[]).map((sx, i) => (
+                <mesh key={`sh${i}`} position={[sx, 1.05, 0]}>
+                    <sphereGeometry args={[0.09, 8, 8]} />
+                    <meshStandardMaterial color="#2a3f5f" roughness={0.4} metalness={0.6} />
+                </mesh>
+            ))}
+            {([-0.12, 0.12] as number[]).map((hx, i) => (
+                <mesh key={`hp${i}`} position={[hx, 0.58, 0]}>
+                    <sphereGeometry args={[0.08, 8, 8]} />
+                    <meshStandardMaterial color="#1a2f4f" roughness={0.5} metalness={0.5} />
+                </mesh>
+            ))}
 
             {/* Left Arm */}
             <group ref={leftArmRef} position={[-0.3, 0.8, 0]}>
@@ -334,14 +354,47 @@ export default function UserAvatar({ sitting, onStandUp }: {
                     <boxGeometry args={[0.12, 0.5, 0.12]} />
                     <meshStandardMaterial color="#2a3f5f" roughness={0.4} metalness={0.6} />
                 </mesh>
+                {/* Elbow */}
+                <mesh position={[0, -0.25, 0]}>
+                    <sphereGeometry args={[0.07, 7, 7]} />
+                    <meshStandardMaterial color="#2a3f5f" roughness={0.3} metalness={0.7} />
+                </mesh>
             </group>
 
-            {/* Right Arm */}
+            {/* Right Arm – carries item */}
             <group ref={rightArmRef} position={[0.3, 0.8, 0]}>
                 <mesh castShadow>
                     <boxGeometry args={[0.12, 0.5, 0.12]} />
                     <meshStandardMaterial color="#2a3f5f" roughness={0.4} metalness={0.6} />
                 </mesh>
+                {/* Elbow */}
+                <mesh position={[0, -0.25, 0]}>
+                    <sphereGeometry args={[0.07, 7, 7]} />
+                    <meshStandardMaterial color="#2a3f5f" roughness={0.3} metalness={0.7} />
+                </mesh>
+                {/* Carried item in hand */}
+                {toyData && (
+                    <group position={[0.04, -0.32, 0.1]}>
+                        {toyData.shape === 'sphere' && (
+                            <mesh>
+                                <sphereGeometry args={[0.13, 10, 10]} />
+                                <meshStandardMaterial color={toyData.color} roughness={0.4} metalness={0.1} />
+                            </mesh>
+                        )}
+                        {toyData.shape === 'cube' && (
+                            <mesh>
+                                <boxGeometry args={[0.20, 0.20, 0.20]} />
+                                <meshStandardMaterial color={toyData.color} roughness={0.5} />
+                            </mesh>
+                        )}
+                        {toyData.shape === 'pyramid' && (
+                            <mesh>
+                                <coneGeometry args={[0.12, 0.24, 4]} />
+                                <meshStandardMaterial color={toyData.color} roughness={0.45} />
+                            </mesh>
+                        )}
+                    </group>
+                )}
             </group>
 
             {/* Left Leg */}
@@ -350,12 +403,21 @@ export default function UserAvatar({ sitting, onStandUp }: {
                     <boxGeometry args={[0.14, 0.6, 0.14]} />
                     <meshStandardMaterial color="#1a2f4f" roughness={0.5} metalness={0.5} />
                 </mesh>
+                {/* Knee */}
+                <mesh position={[0, -0.28, 0]}>
+                    <sphereGeometry args={[0.07, 7, 7]} />
+                    <meshStandardMaterial color="#1a2f4f" roughness={0.5} metalness={0.5} />
+                </mesh>
             </group>
-
             {/* Right Leg */}
             <group ref={rightLegRef} position={[0.12, 0.3, 0]}>
                 <mesh castShadow>
                     <boxGeometry args={[0.14, 0.6, 0.14]} />
+                    <meshStandardMaterial color="#1a2f4f" roughness={0.5} metalness={0.5} />
+                </mesh>
+                {/* Knee */}
+                <mesh position={[0, -0.28, 0]}>
+                    <sphereGeometry args={[0.07, 7, 7]} />
                     <meshStandardMaterial color="#1a2f4f" roughness={0.5} metalness={0.5} />
                 </mesh>
             </group>

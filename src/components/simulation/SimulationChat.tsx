@@ -15,16 +15,13 @@ export interface ChatMessage {
 }
 
 export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
-    const [messages, setMessages] = useState<ChatMessage[]>([
-        {
-            id: 'welcome',
-            role: 'collective',
-            text: 'Collective intelligence online. All nodes active. Awaiting query.',
-            nodeName: 'GOD NODE',
-            nodeAvatar: '◆',
-            timestamp: Date.now(),
-        },
-    ]);
+    const chatHistory = useSimulationStore(s => s.chatHistory);
+    const addChatMessage = useSimulationStore(s => s.addChatMessage);
+
+    // We use a local display state that syncs with store to allow for initial state if needed,
+    // but actually we should just use the store directly.
+    // However, the existing code uses `messages` state. Let's replace it.
+
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
@@ -34,7 +31,7 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
     // Auto-scroll to latest
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [chatHistory]);
 
     // Focus input when chat opens
     useEffect(() => {
@@ -44,13 +41,14 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
     const handleSend = async () => {
         if (!input.trim() || isThinking) return;
 
-        const userMsg: ChatMessage = {
-            id: `user-${Date.now()}`,
-            role: 'user',
+        const userMsg = {
+            role: 'user' as const,
             text: input.trim(),
-            timestamp: Date.now(),
+            nodeName: 'YOU',
+            nodeAvatar: '●',
         };
-        setMessages(prev => [...prev, userMsg]);
+        addChatMessage(userMsg);
+
         const userInput = input.trim();
         setInput('');
         setIsThinking(true);
@@ -82,7 +80,6 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
 
             const data = await response.json();
 
-            // Handle command if present
             // Handle commands if present
             if (data.commands && Array.isArray(data.commands) && data.commands.length > 0) {
                 // Multi-command support
@@ -114,29 +111,25 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
                 useSimulationStore.getState().setRobotIntent(intent);
             }
 
-            const robotResponse: ChatMessage = {
-                id: `robot-${Date.now()}`,
-                role: 'robot',
+            const robotResponse = {
+                role: 'robot' as const,
                 text: data.response,
                 nodeName: 'ATLAS ROBOT',
                 nodeAvatar: '◇',
-                timestamp: Date.now(),
                 isRobotCommand: true, // Treat all responses as "valid" robot interactions
             };
-            setMessages(prev => [...prev, robotResponse]);
+            addChatMessage(robotResponse);
 
             // Show speech bubble in 3D
             useSimulationStore.getState().setRobotSpeech(data.response);
         } catch (error) {
-            const errorMsg: ChatMessage = {
-                id: `error-${Date.now()}`,
-                role: 'robot',
+            const errorMsg = {
+                role: 'robot' as const,
                 text: 'Robot communication error. Please check connection.',
                 nodeName: 'SYSTEM',
                 nodeAvatar: '⚠',
-                timestamp: Date.now(),
             };
-            setMessages(prev => [...prev, errorMsg]);
+            addChatMessage(errorMsg);
         }
         setIsThinking(false);
     };
@@ -144,6 +137,10 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
+            if (!input.trim()) {
+                onToggle();
+                return;
+            }
             handleSend();
         }
     };
@@ -161,7 +158,7 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
                         onClick={() => setShowHistory(!showHistory)}
                         title="Session History"
                     >
-                        ▾ History ({messages.length})
+                        ▾ History ({chatHistory.length})
                     </button>
                     <button className="sim-chat-close" onClick={onToggle}>✕</button>
                 </div>
@@ -170,8 +167,8 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
             {/* History dropdown */}
             {showHistory && (
                 <div className="sim-chat-history-dropdown">
-                    <div className="sim-chat-history-label">SESSION CONTEXT — {messages.length} messages</div>
-                    {messages.map(msg => (
+                    <div className="sim-chat-history-label">SESSION CONTEXT — {chatHistory.length} messages</div>
+                    {chatHistory.map(msg => (
                         <div key={msg.id} className={`sim-chat-history-item ${msg.role}`}>
                             <span className="sim-chat-history-time">
                                 {new Date(msg.timestamp).toLocaleTimeString()}
@@ -189,7 +186,7 @@ export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; 
 
             {/* Messages */}
             <div className="sim-chat-messages">
-                {messages.map(msg => (
+                {chatHistory.map(msg => (
                     <div key={msg.id} className={`sim-chat-bubble ${msg.role}`}>
                         {msg.role === 'collective' && (
                             <div className="sim-chat-node-tag">

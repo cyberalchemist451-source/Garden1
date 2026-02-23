@@ -48,7 +48,7 @@ export interface PortalConfig {
 
 export interface ColliderBox {
     id: string;
-    type: 'tree' | 'rock' | 'portal' | 'boundary' | 'building' | 'chair' | 'table' | 'structure' | 'log' | 'door';
+    type: 'tree' | 'rock' | 'portal' | 'boundary' | 'building' | 'chair' | 'table' | 'structure' | 'log' | 'door' | 'toy' | 'picnic-table';
     position: Vec3;
     size: Vec3;
     interactable: boolean;
@@ -56,10 +56,15 @@ export interface ColliderBox {
     allowMultiple?: boolean;
     metadata?: {
         displayName?: string;
-        action?: 'sit' | 'pickup' | 'open' | 'close' | 'enter';
-        state?: string; // 'open', 'closed', etc.
+        action?: 'sit' | 'pickup' | 'open' | 'close' | 'enter' | 'fetch';
+        state?: string; // 'open', 'closed', 'carried', etc.
         buildingName?: string;
         isInside?: boolean;
+        // Toy fields
+        color?: string;        // e.g. '#ef4444'
+        colorName?: string;    // e.g. 'red'
+        shape?: 'sphere' | 'cube' | 'pyramid';
+        fetchable?: boolean;
     };
 }
 
@@ -103,7 +108,7 @@ export interface MyceliumPulse {
 }
 
 export interface RobotIntent {
-    type: 'move' | 'turn' | 'stop' | 'interact' | 'patrol' | 'follow' | 'idle' | 'query' | 'chat';
+    type: 'move' | 'turn' | 'stop' | 'interact' | 'patrol' | 'follow' | 'idle' | 'query' | 'chat' | 'fetch';
     action?: string;
     parameters?: Record<string, unknown>;
     targetPosition?: Vec3;
@@ -134,11 +139,27 @@ export interface RobotState {
     registerObject: (id: string, type: string, position: Vec3) => void;
     isSitting: boolean;
     sittingPosition?: Vec3;
+    sittingRotation?: number; // radians
+    // Carry system
+    carriedObjectId: string | null;
+    // A* waypoints
+    waypoints: Vec3[];
+    currentWaypointIdx: number;
     currentSpeech?: {
         text: string;
         timestamp: number;
         duration: number;
     };
+    // Centralized chat history for the robot to append to
+    chatHistory: {
+        id: string;
+        role: 'user' | 'collective' | 'robot';
+        text: string;
+        nodeName?: string;
+        nodeAvatar?: string;
+        timestamp: number;
+        isRobotCommand?: boolean;
+    }[];
     temporalMetrics?: {
         realTime: number;
         experiencedTime: number;
@@ -153,6 +174,8 @@ export interface UserState {
     position: Vec3;
     isSitting: boolean;
     sittingPosition?: Vec3;
+    sittingRotation?: number;
+    carriedObjectId: string | null; // [G] to drop
 }
 
 export interface SimulationStore {
@@ -190,6 +213,15 @@ export interface SimulationStore {
     showColliders: boolean;
     isChatOpen: boolean;
     interactionTrigger: { id: string; action: string; timestamp: number } | null;
+    chatHistory: {
+        id: string;
+        role: 'user' | 'collective' | 'robot';
+        text: string;
+        nodeName?: string;
+        nodeAvatar?: string;
+        timestamp: number;
+        isRobotCommand?: boolean;
+    }[];
 
     // Actions
     loadEnvironment: (config: EnvironmentConfig) => void;
@@ -214,16 +246,29 @@ export interface SimulationStore {
     queueRobotIntent: (intent: RobotIntent) => void;
     processNextIntent: () => void;
     clearRobotIntent: () => void;
+    /** Atomically clears current intent and advances the queue. Prevents race conditions. */
+    completeIntent: () => void;
     updateNearbyObjects: (objects: string[]) => void;
-    setRobotSitting: (sitting: boolean, position?: Vec3) => void;
+    setRobotSitting: (sitting: boolean, position?: Vec3, rotation?: number) => void;
     setRobotTemporalMetrics: (metrics: RobotState['temporalMetrics']) => void;
     setRobotCompressionRatio: (ratio: number) => void;
     setRobotSpeech: (text: string, duration?: number) => void;
     setChatOpen: (isOpen: boolean) => void;
     triggerInteraction: (id: string, action: string) => void;
+    setCarriedObject: (id: string | null) => void;      // Atlas carries
+    setUserCarriedObject: (id: string | null) => void;   // User carries
+    setWaypoints: (waypoints: Vec3[]) => void;
+    advanceWaypoint: () => void;
+    addChatMessage: (message: {
+        role: 'user' | 'collective' | 'robot';
+        text: string;
+        nodeName?: string;
+        nodeAvatar?: string;
+        isRobotCommand?: boolean;
+    }) => void;
 
     // User Actions
-    setUserSitting: (isSitting: boolean, position?: Vec3) => void;
+    setUserSitting: (isSitting: boolean, position?: Vec3, rotation?: number) => void;
     setUserPosition: (position: Vec3) => void;
 }
 
@@ -308,11 +353,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         }),
         isSitting: false,
         sittingPosition: undefined,
+        carriedObjectId: null,
+        waypoints: [],
+        currentWaypointIdx: 0,
+        chatHistory: [],
     },
 
     user: {
         position: { x: 0, y: 0, z: 0 },
         isSitting: false,
+        carriedObjectId: null,
     },
 
     sensoryBuffer: [],
@@ -336,6 +386,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     showColliders: false,
     isChatOpen: false,
     interactionTrigger: null,
+    chatHistory: [
+        {
+            id: 'welcome',
+            role: 'collective',
+            text: 'Collective intelligence online. All nodes active. Awaiting query.',
+            nodeName: 'GOD NODE',
+            nodeAvatar: '◆',
+            timestamp: Date.now(),
+        },
+    ],
 
     loadEnvironment: (config) => {
         set({ environment: config, colliders: [], robot: { ...get().robot, position: config.robot.startPosition } });
@@ -491,15 +551,32 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         robot: { ...s.robot, currentIntent: undefined, processingState: 'idle' }
     })),
 
+    completeIntent: () => set(s => {
+        const queue = s.robot.intentQueue;
+        if (queue.length === 0) {
+            return { robot: { ...s.robot, currentIntent: undefined, processingState: 'idle' } };
+        }
+        const [next, ...rest] = queue;
+        return {
+            robot: {
+                ...s.robot,
+                currentIntent: next,
+                intentQueue: rest,
+                processingState: 'active',
+            }
+        };
+    }),
+
     updateNearbyObjects: (objects) => set(s => ({
         robot: { ...s.robot, nearbyObjects: objects }
     })),
 
-    setRobotSitting: (sitting, position) => set(s => ({
+    setRobotSitting: (sitting, position, rotation) => set(s => ({
         robot: {
             ...s.robot,
             isSitting: sitting,
             sittingPosition: position,
+            sittingRotation: rotation,
             animation: sitting ? 'sitting' : 'idle'
         }
     })),
@@ -535,13 +612,30 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
 
     setChatOpen: (isOpen) => set({ isChatOpen: isOpen }),
 
-    triggerInteraction: (id, action) => set({ interactionTrigger: { id, action, timestamp: Date.now() } }),
+    triggerInteraction: (id: string, action: string) => set({ interactionTrigger: { id, action, timestamp: Date.now() } }),
 
-    setUserSitting: (isSitting, position) => set(state => ({
+    setCarriedObject: (id) => set(s => ({ robot: { ...s.robot, carriedObjectId: id } })),
+
+    setUserCarriedObject: (id) => set(s => ({ user: { ...s.user, carriedObjectId: id } })),
+
+    setWaypoints: (waypoints) => set(s => ({ robot: { ...s.robot, waypoints, currentWaypointIdx: 0 } })),
+
+    advanceWaypoint: () => set(s => ({ robot: { ...s.robot, currentWaypointIdx: s.robot.currentWaypointIdx + 1 } })),
+
+    addChatMessage: (msg) => set(s => ({
+        chatHistory: [...s.chatHistory, {
+            id: `msg-${Date.now()}-${Math.random()}`,
+            timestamp: Date.now(),
+            ...msg
+        }]
+    })),
+
+    setUserSitting: (isSitting, position, rotation) => set(state => ({
         user: {
             ...state.user,
             isSitting,
-            sittingPosition: position
+            sittingPosition: position,
+            sittingRotation: rotation
         }
     })),
 

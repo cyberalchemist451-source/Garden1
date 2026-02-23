@@ -13,8 +13,8 @@ const usageStore = {
 };
 
 const CONFIG = {
-    MAX_DAILY_TOKENS: 50000, // ~$0.50 - $2.00 depending on model
-    MAX_REQUESTS_PER_MINUTE: 10,
+    MAX_DAILY_TOKENS: 100000, // raised — passive vision + chat is higher usage
+    MAX_REQUESTS_PER_MINUTE: 20, // raised — Gemini free tier allows 15 RPM, Groq much higher
     RESET_INTERVAL_MS: 24 * 60 * 60 * 1000,
 };
 
