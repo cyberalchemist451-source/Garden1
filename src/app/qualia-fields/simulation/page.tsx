@@ -88,7 +88,7 @@ export default function SimulationPage() {
     return (
         <div style={{ width: '100vw', height: '100vh', background: '#050a08', position: 'relative' }}>
             <ErrorBoundary content={
-                <div className="absolute inset-0 z-0">
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
                     <SimulationWrapper />
                 </div>
             } />

@@ -18,22 +18,22 @@ export class LLMService {
 
     private providers: Provider[] = [
         {
-            name: 'openrouter',
-            url: OPENROUTER_API_URL,
-            key: process.env.OPENROUTER_API_KEY,
-            model: 'openai/gpt-4o-mini'
-        },
-        {
             name: 'groq',
             url: GROQ_API_URL,
             key: process.env.GROQ_API_KEY,
-            model: 'llama-3.3-70b-versatile'
+            model: 'llama-3.1-8b-instant'
         },
         {
             name: 'gemini',
             url: GEMINI_API_URL,
             key: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
             model: 'gemini-2.0-flash'
+        },
+        {
+            name: 'openrouter',
+            url: OPENROUTER_API_URL,
+            key: process.env.OPENROUTER_API_KEY,
+            model: 'openai/gpt-4o-mini'
         }
     ];
 

@@ -428,7 +428,7 @@ export default function AtlasRobot() {
                     }
 
 
-                    if (fetchPhase.current === 'idle') {
+                    if (fetchPhase.current === 'idle' && toyCollider) {
                         // Phase 1: plan path to an approach position BESIDE the table
                         // (offset 2m from toy toward Atlas's current position to avoid table body)
                         fetchPhase.current = 'toToy';
@@ -448,7 +448,7 @@ export default function AtlasRobot() {
                         planPath(approachX, approachZ);
                     }
 
-                    if (fetchPhase.current === 'toToy') {
+                    if (fetchPhase.current === 'toToy' && toyCollider) {
                         const distToToy = Math.sqrt(
                             Math.pow(toyCollider.position.x - position.current.x, 2) +
                             Math.pow(toyCollider.position.z - position.current.z, 2)

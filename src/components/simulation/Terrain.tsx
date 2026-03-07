@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
@@ -92,3 +92,4 @@ export default function Terrain() {
         </group>
     );
 }
+

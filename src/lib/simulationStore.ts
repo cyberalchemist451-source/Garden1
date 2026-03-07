@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 
 /* ─── Types ─── */
 
@@ -392,7 +392,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
             role: 'collective',
             text: 'Collective intelligence online. All nodes active. Awaiting query.',
             nodeName: 'GOD NODE',
-            nodeAvatar: '◆',
+            nodeAvatar: 'Γùå',
             timestamp: Date.now(),
         },
     ],
@@ -646,3 +646,4 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         }
     })),
 }));
+

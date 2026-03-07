@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# zombie-siege game files (separate repository)
+src/app/qualia-fields/undead-siege
+src/components/game
+src/lib/gameStore.ts

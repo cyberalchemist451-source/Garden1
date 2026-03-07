@@ -1,35 +1,20 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+﻿import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "The Living Pattern",
-  description: "Digital Organism Systems — Collective Intelligence Interface",
-  icons: {
-    icon: "/icon.svg",
-  },
+    title: 'Qualia Fields',
+    description: 'Qualia Fields Simulation',
 };
 
 export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className="dark">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
-      </body>
-    </html>
-  );
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <html lang="en">
+            <body>{children}</body>
+        </html>
+    );
 }
+
