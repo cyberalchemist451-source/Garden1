@@ -15,12 +15,6 @@ import { Canvas } from '@react-three/fiber';
 
 const CollectiveOrbs3D = dynamic(() => import('@/components/CollectiveOrbs3D'), {
     ssr: false,
-    loading: () => (
-        <div className="loading-3d">
-            <div className="loading-orb" />
-            <span>Initializing Collective...</span>
-        </div>
-    ),
 });
 
 export default function QualiaFieldsPage() {
