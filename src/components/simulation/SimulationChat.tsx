@@ -122,7 +122,7 @@ export default function SimulationChat() {
         return (
             <button
                 onClick={() => setChatOpen(true)}
-                className="fixed bottom-4 right-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 p-4 rounded-full border border-cyan-500/30 backdrop-blur-sm transition-all"
+                className="fixed bottom-4 right-4 z-50 pointer-events-auto bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 p-4 rounded-full border border-cyan-500/30 backdrop-blur-sm transition-all"
                 title="Open Chat"
             >
                 <MessageCircle size={24} />
@@ -131,7 +131,7 @@ export default function SimulationChat() {
     }
 
     return (
-        <div className="fixed bottom-4 right-4 w-96 h-[500px] bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col">
+        <div className="fixed bottom-4 right-4 z-50 pointer-events-auto w-96 h-[500px] bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-3 border-b border-cyan-500/30">
                 <h3 className="text-cyan-300 font-semibold">Collective Interface</h3>
@@ -149,8 +149,8 @@ export default function SimulationChat() {
                     <div
                         key={msg.id}
                         className={`p-2 rounded ${msg.role === 'user'
-                                ? 'bg-blue-500/20 text-blue-200 ml-8'
-                                : 'bg-cyan-500/10 text-cyan-200 mr-8'
+                            ? 'bg-blue-500/20 text-blue-200 ml-8'
+                            : 'bg-cyan-500/10 text-cyan-200 mr-8'
                             }`}
                     >
                         <div className="font-semibold text-xs opacity-70 mb-1">
