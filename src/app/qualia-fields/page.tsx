@@ -29,7 +29,7 @@ export default function QualiaFieldsPage() {
     return (
         <div className="qualia-container">
             {/* 3D Background */}
-            <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
                 <Canvas camera={{ position: [0, 8, 20], fov: 50 }}>
                     <ambientLight intensity={0.3} />
                     <pointLight position={[10, 10, 10]} intensity={0.5} />
