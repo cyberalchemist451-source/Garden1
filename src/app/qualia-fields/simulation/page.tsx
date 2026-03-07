@@ -128,7 +128,7 @@ export default function SimulationPage() {
             </div>
 
             {/* Chat Interface */}
-            <SimulationChat isOpen={showChat} onToggle={() => setChatOpen(!showChat)} />
+            <SimulationChat />
 
             {/* Experience Monitor */}
             <ExperienceMonitor />

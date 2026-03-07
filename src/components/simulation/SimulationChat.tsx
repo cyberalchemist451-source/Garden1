@@ -1,249 +1,187 @@
-'use client';
+import { useState, useEffect, useRef } from 'react';
+import { useSimulationStore, compressKnownObjects } from '@/lib/simulationStore';
+import { Send, Loader2, MessageCircle, X } from 'lucide-react';
 
-import { useState, useRef, useEffect } from 'react';
-import { useSimulationStore, RobotIntent } from '@/lib/simulationStore';
-
-export interface ChatMessage {
-    id: string;
-    role: 'user' | 'collective' | 'robot';
-    text: string;
-    nodeId?: string;
-    nodeName?: string;
-    nodeAvatar?: string;
-    timestamp: number;
-    isRobotCommand?: boolean;
-}
-
-export default function SimulationChat({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
-    const chatHistory = useSimulationStore(s => s.chatHistory);
-    const addChatMessage = useSimulationStore(s => s.addChatMessage);
-
-    // We use a local display state that syncs with store to allow for initial state if needed,
-    // but actually we should just use the store directly.
-    // However, the existing code uses `messages` state. Let's replace it.
-
-    const [input, setInput] = useState('');
-    const [isThinking, setIsThinking] = useState(false);
-    const [showHistory, setShowHistory] = useState(false);
+export default function SimulationChat() {
+    const [userInput, setUserInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const chatEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Auto-scroll to latest
+    const {
+        chatHistory,
+        addChatMessage,
+        isChatOpen,
+        setChatOpen,
+        robot: robotState,
+        user: userState,
+        queueRobotIntent,
+    } = useSimulationStore();
+
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatHistory]);
 
-    // Focus input when chat opens
-    useEffect(() => {
-        if (isOpen) inputRef.current?.focus();
-    }, [isOpen]);
-
     const handleSend = async () => {
-        if (!input.trim() || isThinking) return;
+        if (!userInput.trim() || isLoading) return;
 
-        const userMsg = {
-            role: 'user' as const,
-            text: input.trim(),
-            nodeName: 'YOU',
-            nodeAvatar: '●',
-        };
-        addChatMessage(userMsg);
+        const msg = userInput.trim();
+        setUserInput('');
 
-        const userInput = input.trim();
-        setInput('');
-        setIsThinking(true);
+        // Add user message to chat
+        addChatMessage({
+            role: 'user',
+            text: msg,
+        });
+
+        setIsLoading(true);
 
         try {
-            // Send to Robot API for unified processing (commands + conversation)
-            const robotState = useSimulationStore.getState().robot;
-            const userState = useSimulationStore.getState().user;
-
+            // OPTIMIZED: Compress all state before sending
             const response = await fetch('/api/robot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: userInput,
+                    message: msg,
                     robotState: {
-                        position: robotState.position,
-                        rotation: { y: robotState.rotation.y },
+                        // Compressed position (1 decimal place)
+                        position: {
+                            x: Math.round(robotState.position.x * 10) / 10,
+                            y: Math.round(robotState.position.y * 10) / 10,
+                            z: Math.round(robotState.position.z * 10) / 10
+                        },
+                        rotation: { y: Math.round(robotState.rotation.y * 100) / 100 },
                         animation: robotState.animation,
-                        nearbyObjects: robotState.nearbyObjects,
+                        // Only send nearby object IDs, max 10
+                        nearbyObjects: robotState.nearbyObjects.slice(0, 10),
+                        // Compressed known objects summary
+                        knownObjectsSummary: compressKnownObjects(robotState.knownObjects || {}),
                     },
                     userState: {
-                        position: userState.position,
+                        position: userState.position ? {
+                            x: Math.round(userState.position.x * 10) / 10,
+                            y: Math.round(userState.position.y * 10) / 10,
+                            z: Math.round(userState.position.z * 10) / 10
+                        } : null,
                         isSitting: userState.isSitting
-                    }
+                    },
+                    // Only last 10 chat messages
+                    recentChatHistory: chatHistory.slice(-10).map(msg => ({
+                        role: msg.role,
+                        text: msg.text.slice(0, 200) // Truncate long messages
+                    }))
                 }),
             });
 
-            if (!response.ok) throw new Error('API Error');
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Network error');
+            }
 
             const data = await response.json();
 
-            // Handle commands if present
-            if (data.commands && Array.isArray(data.commands) && data.commands.length > 0) {
-                // Multi-command support
-                data.commands.forEach((cmd: any) => {
-                    if (cmd.type !== 'unknown') {
-                        const intent: RobotIntent = {
-                            type: cmd.type,
-                            action: cmd.action,
-                            parameters: cmd.parameters,
-                            duration: cmd.duration || 2,
+            // Add collective response
+            addChatMessage({
+                role: 'collective',
+                text: data.response || 'No response.',
+                nodeName: 'COLLECTIVE',
+            });
+
+            // Queue commands
+            const cmds = data.commands || [data.command];
+            if (cmds && cmds.length > 0) {
+                for (const cmd of cmds) {
+                    if (cmd && cmd.type !== 'chat') {
+                        queueRobotIntent({
+                            ...cmd,
                             completed: false,
-                        };
-                        useSimulationStore.getState().queueRobotIntent(intent);
+                        });
                     }
-                });
-
-                // Trigger processing if idle
-                useSimulationStore.getState().processNextIntent();
-
-            } else if (data.command && data.command.type !== 'unknown') {
-                // Backwards compatibility / single command
-                const intent: RobotIntent = {
-                    type: data.command.type,
-                    action: data.command.action,
-                    parameters: data.command.parameters,
-                    duration: data.command.duration || 2,
-                    completed: false,
-                };
-                useSimulationStore.getState().setRobotIntent(intent);
+                }
             }
 
-            const robotResponse = {
-                role: 'robot' as const,
-                text: data.response,
-                nodeName: 'ATLAS ROBOT',
-                nodeAvatar: '◇',
-                isRobotCommand: true, // Treat all responses as "valid" robot interactions
-            };
-            addChatMessage(robotResponse);
-
-            // Show speech bubble in 3D
-            useSimulationStore.getState().setRobotSpeech(data.response);
-        } catch (error) {
-            const errorMsg = {
-                role: 'robot' as const,
-                text: 'Robot communication error. Please check connection.',
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : 'Unknown error';
+            addChatMessage({
+                role: 'collective',
+                text: `Error: ${errMsg}`,
                 nodeName: 'SYSTEM',
-                nodeAvatar: '⚠',
-            };
-            addChatMessage(errorMsg);
+            });
+        } finally {
+            setIsLoading(false);
         }
-        setIsThinking(false);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (!input.trim()) {
-                onToggle();
-                return;
-            }
             handleSend();
         }
     };
 
-    if (!isOpen) return null;
+    if (!isChatOpen) {
+        return (
+            <button
+                onClick={() => setChatOpen(true)}
+                className="fixed bottom-4 right-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 p-4 rounded-full border border-cyan-500/30 backdrop-blur-sm transition-all"
+                title="Open Chat"
+            >
+                <MessageCircle size={24} />
+            </button>
+        );
+    }
 
     return (
-        <div className="sim-chat-container">
+        <div className="fixed bottom-4 right-4 w-96 h-[500px] bg-black/80 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl flex flex-col">
             {/* Header */}
-            <div className="sim-chat-header">
-                <span className="sim-chat-title">◆ COLLECTIVE INTERFACE</span>
-                <div className="sim-chat-header-actions">
-                    <button
-                        className={`sim-chat-history-btn ${showHistory ? 'active' : ''}`}
-                        onClick={() => setShowHistory(!showHistory)}
-                        title="Session History"
-                    >
-                        ▾ History ({chatHistory.length})
-                    </button>
-                    <button className="sim-chat-close" onClick={onToggle}>✕</button>
-                </div>
+            <div className="flex items-center justify-between p-3 border-b border-cyan-500/30">
+                <h3 className="text-cyan-300 font-semibold">Collective Interface</h3>
+                <button
+                    onClick={() => setChatOpen(false)}
+                    className="text-cyan-500/50 hover:text-cyan-300 transition-colors"
+                >
+                    <X size={20} />
+                </button>
             </div>
 
-            {/* History dropdown */}
-            {showHistory && (
-                <div className="sim-chat-history-dropdown">
-                    <div className="sim-chat-history-label">SESSION CONTEXT — {chatHistory.length} messages</div>
-                    {chatHistory.map(msg => (
-                        <div key={msg.id} className={`sim-chat-history-item ${msg.role}`}>
-                            <span className="sim-chat-history-time">
-                                {new Date(msg.timestamp).toLocaleTimeString()}
-                            </span>
-                            <span className="sim-chat-history-sender">
-                                {msg.role === 'user' ? 'YOU' : msg.nodeName || 'COLLECTIVE'}
-                            </span>
-                            <span className="sim-chat-history-preview">
-                                {msg.text.slice(0, 60)}{msg.text.length > 60 ? '...' : ''}
-                            </span>
+            {/* Chat History */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 text-sm">
+                {chatHistory.map((msg) => (
+                    <div
+                        key={msg.id}
+                        className={`p-2 rounded ${msg.role === 'user'
+                                ? 'bg-blue-500/20 text-blue-200 ml-8'
+                                : 'bg-cyan-500/10 text-cyan-200 mr-8'
+                            }`}
+                    >
+                        <div className="font-semibold text-xs opacity-70 mb-1">
+                            {msg.role === 'user' ? 'You' : msg.nodeName || 'Collective'}
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Messages */}
-            <div className="sim-chat-messages">
-                {chatHistory.map(msg => (
-                    <div key={msg.id} className={`sim-chat-bubble ${msg.role}`}>
-                        {msg.role === 'collective' && (
-                            <div className="sim-chat-node-tag">
-                                <span className="sim-chat-avatar">{msg.nodeAvatar}</span>
-                                <span className="sim-chat-node-name">{msg.nodeName}</span>
-                            </div>
-                        )}
-                        {msg.role === 'robot' && (
-                            <div className="sim-chat-node-tag robot-tag">
-                                <span className="sim-chat-avatar" style={{ color: '#ff6600' }}>{msg.nodeAvatar}</span>
-                                <span className="sim-chat-node-name" style={{ color: '#ff6600' }}>{msg.nodeName}</span>
-                            </div>
-                        )}
-                        {msg.role === 'user' && (
-                            <div className="sim-chat-node-tag user-tag">
-                                <span className="sim-chat-avatar">●</span>
-                                <span className="sim-chat-node-name">YOU</span>
-                            </div>
-                        )}
-                        <div className="sim-chat-text">{msg.text}</div>
-                        <div className="sim-chat-time">
-                            {new Date(msg.timestamp).toLocaleTimeString()}
-                        </div>
+                        <div>{msg.text}</div>
                     </div>
                 ))}
-                {isThinking && (
-                    <div className="sim-chat-bubble collective thinking">
-                        <div className="sim-chat-node-tag">
-                            <span className="sim-chat-avatar">◆</span>
-                            <span className="sim-chat-node-name">PROCESSING</span>
-                        </div>
-                        <div className="sim-chat-thinking-dots">
-                            <span>●</span><span>●</span><span>●</span>
-                        </div>
-                    </div>
-                )}
                 <div ref={chatEndRef} />
             </div>
 
             {/* Input */}
-            <div className="sim-chat-input-area">
-                <textarea
-                    ref={inputRef}
-                    className="sim-chat-input"
-                    placeholder="Query the collective..."
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    rows={1}
-                />
-                <button
-                    className="sim-chat-send"
-                    onClick={handleSend}
-                    disabled={!input.trim() || isThinking}
-                >
-                    {isThinking ? '⟳' : '→'}
-                </button>
+            <div className="p-3 border-t border-cyan-500/30">
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Send a message..."
+                        disabled={isLoading}
+                        className="flex-1 bg-black/50 border border-cyan-500/30 rounded px-3 py-2 text-cyan-200 placeholder-cyan-700 focus:outline-none focus:border-cyan-500"
+                    />
+                    <button
+                        onClick={handleSend}
+                        disabled={isLoading || !userInput.trim()}
+                        className="bg-cyan-500/20 hover:bg-cyan-500/30 disabled:bg-gray-500/20 text-cyan-300 disabled:text-gray-500 p-2 rounded transition-colors"
+                    >
+                        {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                    </button>
+                </div>
             </div>
         </div>
     );
