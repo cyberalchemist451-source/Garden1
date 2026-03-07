@@ -46,7 +46,7 @@ export default function ExperienceMonitor() {
             width: '280px',
             color: '#fff',
             fontSize: '13px',
-            zIndex: 100,
+            zIndex: 150,
             fontFamily: 'monospace',
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>

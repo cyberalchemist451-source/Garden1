@@ -185,7 +185,7 @@ export default function MemoryMapOverlay() {
                     border: '1px solid rgba(45,255,110,0.3)',
                     borderRadius: 12,
                     overflow: 'hidden',
-                    zIndex: 100,
+                    zIndex: 150,
                     fontFamily: 'monospace',
                     boxShadow: '0 0 30px rgba(45,255,110,0.1)',
                 }}>

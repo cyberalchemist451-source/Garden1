@@ -149,7 +149,7 @@ export default function EnvironmentEditor() {
             border: '1px solid rgba(170,168,255,0.3)',
             borderRadius: 12,
             overflow: 'hidden',
-            zIndex: 100,
+            zIndex: 150,
             fontFamily: 'monospace',
             boxShadow: '0 0 30px rgba(170,168,255,0.08)',
             maxHeight: '80vh',
