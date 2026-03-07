@@ -11,6 +11,8 @@ import { useCollectiveStore } from '@/lib/store';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
+import { Canvas } from '@react-three/fiber';
+
 const CollectiveOrbs3D = dynamic(() => import('@/components/CollectiveOrbs3D'), {
     ssr: false,
     loading: () => (
@@ -33,7 +35,13 @@ export default function QualiaFieldsPage() {
     return (
         <div className="qualia-container">
             {/* 3D Background */}
-            <CollectiveOrbs3D />
+            <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+                <Canvas camera={{ position: [0, 8, 20], fov: 50 }}>
+                    <ambientLight intensity={0.3} />
+                    <pointLight position={[10, 10, 10]} intensity={0.5} />
+                    <CollectiveOrbs3D />
+                </Canvas>
+            </div>
 
             {/* Header */}
             <header className="qualia-header">
