@@ -16,8 +16,8 @@ export default function ExperienceMonitor() {
                 onClick={() => setIsOpen(true)}
                 style={{
                     position: 'fixed',
-                    bottom: 80,
-                    right: 20,
+                    top: 130,
+                    left: 20,
                     background: '#ff6600',
                     color: '#fff',
                     padding: '8px 12px',
@@ -37,8 +37,8 @@ export default function ExperienceMonitor() {
     return (
         <div style={{
             position: 'fixed',
-            bottom: 20,
-            right: 20,
+            top: 130,
+            left: 20,
             background: 'rgba(20, 20, 30, 0.95)',
             border: '1px solid #ff6600',
             borderRadius: '8px',

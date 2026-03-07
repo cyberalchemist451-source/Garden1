@@ -120,8 +120,8 @@ export default function EnvironmentEditor() {
                 onClick={() => setIsOpen(true)}
                 style={{
                     position: 'fixed',
-                    bottom: 210,
-                    right: 20,
+                    top: 80,
+                    left: 20,
                     background: 'rgba(8,8,16,0.9)',
                     border: '1px solid rgba(170,168,255,0.35)',
                     borderRadius: 8,
@@ -142,8 +142,8 @@ export default function EnvironmentEditor() {
     return (
         <div style={{
             position: 'fixed',
-            bottom: 20,
-            right: 20,
+            top: 80,
+            left: 20,
             width: 280,
             background: 'rgba(4,6,14,0.97)',
             border: '1px solid rgba(170,168,255,0.3)',

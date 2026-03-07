@@ -157,8 +157,8 @@ export default function MemoryMapOverlay() {
                     onClick={() => setIsOpen(true)}
                     style={{
                         position: 'fixed',
-                        bottom: 130,
-                        right: 20,
+                        bottom: 80,
+                        left: 20,
                         background: 'rgba(8,8,16,0.9)',
                         border: '1px solid rgba(45,255,110,0.4)',
                         borderRadius: 8,

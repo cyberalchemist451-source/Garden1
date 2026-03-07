@@ -114,12 +114,12 @@ export default function SimulationPage() {
             <div style={{
                 position: 'absolute',
                 bottom: 20,
-                right: 20,
+                left: 20,
                 color: 'rgba(255,255,255,0.35)',
                 fontFamily: 'monospace',
                 fontSize: '11px',
                 zIndex: 10,
-                textAlign: 'right',
+                textAlign: 'left',
                 pointerEvents: 'none',
             }}>
                 <p><strong style={{ color: 'rgba(255,255,255,0.5)' }}>User:</strong> WASD/QE | Shift Sprint | F Flex | Right-click Chair</p>
