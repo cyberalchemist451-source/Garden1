@@ -3,21 +3,21 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useSimulationStore } from '@/lib/simulationStore';
+import {
+    OBSTACLE_LOG_X,
+    OBSTACLE_LOG_Z,
+    PICNIC_TABLE_X,
+    PICNIC_TABLE_Z,
+    PICNIC_TOY_OFFSETS,
+} from '@/lib/worldContext';
 import { getTerrainHeight } from './Terrain';
 
-// ── Picnic area world position ────────────────────────────────────────────────
-// Place ~18m in front of (south of) the cabin, which sits around (25, ?, 7)
-// The log obstacle sits about halfway between Atlas's spawn (0,0,0) and the picnic table.
-const TABLE_X = 25;
-const TABLE_Z = 28;   // south of cabin door
-const LOG_X = 22;
-const LOG_Z = 18;   // between spawn and table
+const TABLE_X = PICNIC_TABLE_X;
+const TABLE_Z = PICNIC_TABLE_Z;
+const LOG_X = OBSTACLE_LOG_X;
+const LOG_Z = OBSTACLE_LOG_Z;
 
-const TOYS = [
-    { id: 'toy-sphere', shape: 'sphere' as const, colorName: 'red', color: '#ef4444', ox: -1.2, oz: 0.2 },
-    { id: 'toy-cube', shape: 'cube' as const, colorName: 'blue', color: '#3b82f6', ox: 0.0, oz: 0.3 },
-    { id: 'toy-pyramid', shape: 'pyramid' as const, colorName: 'yellow', color: '#eab308', ox: 1.2, oz: 0.1 },
-];
+const TOYS = [...PICNIC_TOY_OFFSETS];
 
 export default function PicnicArea() {
     const { addCollider, removeCollider, environment } = useSimulationStore();

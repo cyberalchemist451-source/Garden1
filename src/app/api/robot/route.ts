@@ -6,6 +6,7 @@ import {
     getLlmEnvSnapshot,
     hasConfiguredLlmProvider,
 } from '@/lib/llm/LLMService';
+import { buildAtlasWorldPromptSection, type SceneFetchableToy } from '@/lib/worldContext';
 
 // LLMService handles the connection details
 const llm = LLMService.getInstance();
@@ -84,30 +85,41 @@ async function generateCollectiveResponse(
     userState?: any,
     image?: string,
     isVisualAnalysis: boolean = false,
-    systemOverride?: string
+    systemOverride?: string,
+    sceneContext?: { fetchableToys?: SceneFetchableToy[] }
 ): Promise<LLMOutput> {
     try {
-        // OPTIMIZED: Compress nearby objects by type
         const nearby = state?.nearbyObjects?.filter(o => !o.includes('terrain') && !o.includes('robot')) || [];
 
-        // Group by type for compression
-        const nearbyByType = nearby.reduce((acc, obj) => {
-            const type = obj.split('-')[0]; // Extract type from "tree-1", "rock-3"
-            acc[type] = (acc[type] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
+        const nearbyStr =
+            nearby.length > 0
+                ? [...new Set(nearby)].slice(0, 24).join('; ')
+                : 'nothing detected in forward vision cone (60°, 60m)';
 
-        const nearbyStr = Object.entries(nearbyByType)
-            .map(([type, count]) => count > 1 ? `${count} ${type}s` : `1 ${type}`)
-            .join(', ') || 'Empty area';
-
-        let context = `Nearby: ${nearbyStr}.\n`;
+        let context = `Nearby (vision labels): ${nearbyStr}.\n`;
 
         if (userState?.position) {
             context += `User Position: (${userState.position.x.toFixed(1)}, ${userState.position.z.toFixed(1)}).\n`;
         }
 
-        let systemMessage = COLLECTIVE_SYSTEM_PROMPT + `\nCONTEXT:\n${context}`;
+        if (sceneContext?.fetchableToys?.length) {
+            context += 'Fetchable toys — world positions (authoritative; use to plan search if not in vision):\n';
+            for (const t of sceneContext.fetchableToys) {
+                context += `  - ${t.objectName}  @  x=${t.position.x}, z=${t.position.z}  (id ${t.id})\n`;
+            }
+        }
+
+        console.log('[Robot API] context', {
+            nearbyCount: nearby.length,
+            toyAnchors: sceneContext?.fetchableToys?.length ?? 0,
+            preview: context.slice(0, 280),
+        });
+
+        let systemMessage =
+            COLLECTIVE_SYSTEM_PROMPT +
+            '\n' +
+            buildAtlasWorldPromptSection() +
+            `\nCONTEXT:\n${context}`;
 
         if (systemOverride) {
             systemMessage += `\n\n${systemOverride}`;
@@ -143,7 +155,7 @@ async function generateCollectiveResponse(
             model: OPENROUTER_MODEL,
             response_format: { type: "json_object" } as any,
             temperature: OPENROUTER_DEFAULT_TEMPERATURE,
-            max_tokens: isVisualAnalysis ? 200 : 150, // Less for commands
+            max_tokens: isVisualAnalysis ? 220 : 220, // Room for multi-step commands + expanded world context
         });
 
         const content = completion.content;
@@ -183,11 +195,19 @@ async function generateCollectiveResponse(
 export async function POST(req: NextRequest) {
     try {
         const reqBody = await req.json();
-        const { message, robotState, type, image } = reqBody;
+        const { message, robotState, type, image, sceneContext } = reqBody;
 
         if (!message) {
             return NextResponse.json({ error: 'No message provided' }, { status: 400 });
         }
+
+        console.log('[Robot API] POST', {
+            type: type || 'chat',
+            messagePreview: String(message).slice(0, 96),
+            hasImage: !!image,
+            sceneToys: sceneContext?.fetchableToys?.length ?? 0,
+            robotPos: robotState?.position,
+        });
 
         // OPTIMIZATION: Deduplicate similar requests within 5s
         const reqKey = `${message.slice(0, 50)}-${type || 'default'}`;
@@ -214,7 +234,15 @@ export async function POST(req: NextRequest) {
         // Special handling: Vision Analysis
         if (type === 'analysis') {
             const analysisPrompt = message + " (Provide a detailed visual analysis. If you see the User/Avatar, acknowledge them explicitly and describe their relative position.)";
-            const result = await generateCollectiveResponse(analysisPrompt, robotState, reqBody.userState, image, true);
+            const result = await generateCollectiveResponse(
+                analysisPrompt,
+                robotState,
+                reqBody.userState,
+                image,
+                true,
+                undefined,
+                sceneContext
+            );
             return NextResponse.json({ response: result.response });
         }
 
@@ -234,7 +262,8 @@ Return only: { "thought": "...", "response": "...", "commands": [] }
                 reqBody.userState,
                 undefined,
                 false,
-                failureContext
+                failureContext,
+                sceneContext
             );
             const responseData: RobotResponse = {
                 command: { type: 'chat', action: 'general' },
@@ -246,7 +275,7 @@ Return only: { "thought": "...", "response": "...", "commands": [] }
         }
 
         // Standard Interaction
-        const result = await generateCollectiveResponse(message, robotState, reqBody.userState, image);
+        const result = await generateCollectiveResponse(message, robotState, reqBody.userState, image, false, undefined, sceneContext);
 
         const responseData: RobotResponse = {
             command: result.commands[0] || { type: 'chat', action: 'general' },

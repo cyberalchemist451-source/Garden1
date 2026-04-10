@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { resolveFetchToyCollider } from '@/lib/resolveFetchToy';
 import { useSimulationStore, RobotIntent } from '@/lib/simulationStore';
 import { buildGrid, astar, isClimbableWaypoint, PathGrid } from '@/lib/pathfinder';
 import { getTerrainHeight } from '@/components/simulation/Terrain';
@@ -368,13 +369,20 @@ export default function AtlasRobot() {
                     break;
 
                 case 'fetch': {
-                    const objName = (currentIntent.parameters?.objectName as string || '').toLowerCase();
+                    const raw =
+                        (currentIntent.parameters?.objectName as string) ||
+                        (currentIntent.parameters?.object_name as string) ||
+                        '';
+                    const objName = raw.toLowerCase();
 
-                    // Resolve toy collider by name match
-                    const toyCollider = colliders.find(c =>
-                        c.type === 'toy' && c.metadata?.fetchable &&
-                        `${c.metadata.colorName} ${c.metadata.shape}`.toLowerCase() === objName
-                    );
+                    const toyCollider = resolveFetchToyCollider(colliders, raw);
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log('[Atlas fetch] resolve', {
+                            raw,
+                            resolvedId: toyCollider?.id,
+                            candidates: colliders.filter(c => c.type === 'toy').map(c => c.id),
+                        });
+                    }
 
                     // Helper: abort fetch with an in-character failure message
                     const abortFetch = (reason: string) => {

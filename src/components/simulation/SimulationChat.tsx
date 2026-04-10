@@ -16,6 +16,7 @@ export default function SimulationChat() {
         user: userState,
         queueRobotIntent,
     } = useSimulationStore();
+    const colliders = useSimulationStore(s => s.colliders);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,7 +69,19 @@ export default function SimulationChat() {
                     recentChatHistory: chatHistory.slice(-10).map(msg => ({
                         role: msg.role,
                         text: msg.text.slice(0, 200) // Truncate long messages
-                    }))
+                    })),
+                    sceneContext: {
+                        fetchableToys: colliders
+                            .filter(c => c.type === 'toy' && c.metadata?.fetchable)
+                            .map(c => ({
+                                id: c.id,
+                                objectName: `${c.metadata?.colorName ?? ''} ${c.metadata?.shape ?? ''}`.trim(),
+                                position: {
+                                    x: Math.round(c.position.x * 10) / 10,
+                                    z: Math.round(c.position.z * 10) / 10,
+                                },
+                            })),
+                    },
                 }),
             });
 
