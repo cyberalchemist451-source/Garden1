@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LLMService, OPENROUTER_DEFAULT_TEMPERATURE, OPENROUTER_MODEL } from '@/lib/llm/LLMService';
+import {
+    LLMService,
+    OPENROUTER_DEFAULT_TEMPERATURE,
+    OPENROUTER_MODEL,
+    getLlmEnvSnapshot,
+    hasConfiguredLlmProvider,
+} from '@/lib/llm/LLMService';
 
 // LLMService handles the connection details
 const llm = LLMService.getInstance();
@@ -54,6 +60,18 @@ interface LLMOutput {
     thought: string;
     response: string;
     commands: RobotCommand[];
+}
+
+/** GET — connectivity snapshot (no upstream LLM call). Use to verify deployment env and routing. */
+export async function GET() {
+    return NextResponse.json({
+        ok: true,
+        service: 'robot',
+        llmReady: hasConfiguredLlmProvider(),
+        llm: getLlmEnvSnapshot(),
+        defaultModel: OPENROUTER_MODEL,
+        defaultTemperature: OPENROUTER_DEFAULT_TEMPERATURE,
+    });
 }
 
 // OPTIMIZATION: Request deduplication

@@ -31,6 +31,22 @@ function getOpenRouterTitle(): string {
     return process.env.OPENROUTER_APP_TITLE?.trim() || 'Qualia Simulation';
 }
 
+/** Non-secret snapshot for connectivity checks (GET /api/robot). */
+export function getLlmEnvSnapshot() {
+    return {
+        openrouter: !!process.env.OPENROUTER_API_KEY,
+        groq: !!process.env.GROQ_API_KEY,
+        gemini: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+        openRouterReferer: getOpenRouterReferer(),
+        openRouterModel: OPENROUTER_MODEL,
+    };
+}
+
+export function hasConfiguredLlmProvider(): boolean {
+    const s = getLlmEnvSnapshot();
+    return s.openrouter || s.groq || s.gemini;
+}
+
 interface Provider {
     name: string;
     url: string;
