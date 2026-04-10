@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LLMService } from '@/lib/llm/LLMService';
+import { LLMService, OPENROUTER_DEFAULT_TEMPERATURE, OPENROUTER_MODEL } from '@/lib/llm/LLMService';
 
 // LLMService handles the connection details
 const llm = LLMService.getInstance();
@@ -122,9 +122,9 @@ async function generateCollectiveResponse(
         // OPTIMIZATION: Reduce max_tokens for non-analysis requests
         const completion = await llm.chat({
             messages: messages,
-            model: "openai/gpt-4o-mini",
+            model: OPENROUTER_MODEL,
             response_format: { type: "json_object" } as any,
-            temperature: 0.7,
+            temperature: OPENROUTER_DEFAULT_TEMPERATURE,
             max_tokens: isVisualAnalysis ? 200 : 150, // Less for commands
         });
 

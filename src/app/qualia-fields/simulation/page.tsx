@@ -11,6 +11,7 @@ import ExperienceMonitor from '@/components/simulation/ExperienceMonitor';
 import MemoryMapOverlay from '@/components/simulation/MemoryMapOverlay';
 import PassiveVisionLoop from '@/components/simulation/PassiveVisionLoop';
 import EnvironmentEditor from '@/components/simulation/EnvironmentEditor';
+import TokenTracker from '@/components/simulation/TokenTracker';
 
 // Dynamic import of the WRAPPER (contains Canvas + Scene)
 // This ensures that ALL 3D code stays on the client side only.
@@ -97,6 +98,9 @@ export default function SimulationPage() {
             <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
                 <KeybindMenu isOpen={showKeys} onToggle={() => setShowKeys(!showKeys)} />
             </div>
+
+            {/* Top Right - Token usage (server /api/usage) */}
+            <TokenTracker />
 
             {/* Top Right - Rewards HUD (Feature 1: Task & Reward System) */}
             <RewardsHUD />

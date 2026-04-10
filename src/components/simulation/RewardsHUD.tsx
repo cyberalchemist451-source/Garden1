@@ -238,7 +238,7 @@ export default function RewardsHUD() {
             {/* Main HUD */}
             <div style={{
                 position: 'fixed',
-                top: 16,
+                top: 100,
                 right: 16,
                 background: 'rgba(8,8,16,0.92)',
                 backdropFilter: 'blur(12px)',

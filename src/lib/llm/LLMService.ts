@@ -6,6 +6,10 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
+/** https://openrouter.ai/google/gemma-4-26b-a4b-it */
+export const OPENROUTER_MODEL = 'google/gemma-4-26b-a4b-it';
+export const OPENROUTER_DEFAULT_TEMPERATURE = 0.5;
+
 interface Provider {
     name: string;
     url: string;
@@ -18,6 +22,12 @@ export class LLMService {
 
     private providers: Provider[] = [
         {
+            name: 'openrouter',
+            url: OPENROUTER_API_URL,
+            key: process.env.OPENROUTER_API_KEY,
+            model: OPENROUTER_MODEL
+        },
+        {
             name: 'groq',
             url: GROQ_API_URL,
             key: process.env.GROQ_API_KEY,
@@ -29,12 +39,6 @@ export class LLMService {
             key: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
             model: 'gemini-2.0-flash'
         },
-        {
-            name: 'openrouter',
-            url: OPENROUTER_API_URL,
-            key: process.env.OPENROUTER_API_KEY,
-            model: 'openai/gpt-4o-mini'
-        }
     ];
 
     private constructor() {
@@ -77,10 +81,12 @@ export class LLMService {
                     headers['X-Title'] = 'Qualia Simulation';
                 }
 
+                const defaultTemp =
+                    provider.name === 'openrouter' ? OPENROUTER_DEFAULT_TEMPERATURE : 0.7;
                 const body: Record<string, unknown> = {
                     model,
                     messages: request.messages,
-                    temperature: request.temperature ?? 0.7,
+                    temperature: request.temperature ?? defaultTemp,
                     max_tokens: request.maxTokens ?? request.max_tokens ?? 1024,
                 };
 
@@ -105,7 +111,7 @@ export class LLMService {
 
                 const data = await response.json();
                 const usage = data.usage;
-                if (usage) Guardrails.consumeTokens(usage.total_tokens);
+                if (usage) Guardrails.consumeUsage(usage, model);
 
                 const choice = data.choices?.[0];
                 if (!choice) {

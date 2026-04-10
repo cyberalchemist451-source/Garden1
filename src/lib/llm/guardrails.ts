@@ -1,13 +1,17 @@
+import { estimateUsdFromUsage } from './tokenCost';
 
 /**
  * Guardrails System
  * Prevents API abuse and manages costs via token budgeting and rate limiting.
  */
 
-// Simple in-memory storage for now. 
+// Simple in-memory storage for now.
 // In a real app, this should be Redis or a database.
 const usageStore = {
     dailyTokens: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    estimatedUsd: 0,
     lastReset: Date.now(),
     requestTimestamps: [] as number[],
 };
@@ -24,9 +28,35 @@ export class Guardrails {
         return usageStore.dailyTokens < CONFIG.MAX_DAILY_TOKENS;
     }
 
-    static consumeTokens(amount: number) {
+    /**
+     * Record a completion from an OpenAI-compatible `usage` object.
+     * `modelId` should be the model string returned by the provider (used for USD estimate).
+     */
+    static consumeUsage(
+        usage: {
+            total_tokens?: number;
+            prompt_tokens?: number;
+            completion_tokens?: number;
+        },
+        modelId: string
+    ) {
         this.resetIfNewDay();
-        usageStore.dailyTokens += amount;
+        const prompt = usage.prompt_tokens ?? 0;
+        const completion = usage.completion_tokens ?? 0;
+        const totalFromApi = usage.total_tokens ?? prompt + completion;
+        if (totalFromApi <= 0 && prompt === 0 && completion === 0) return;
+
+        usageStore.dailyTokens += totalFromApi;
+        usageStore.promptTokens += prompt;
+        usageStore.completionTokens += completion;
+        usageStore.estimatedUsd += estimateUsdFromUsage(
+            {
+                total_tokens: usage.total_tokens,
+                prompt_tokens: usage.prompt_tokens,
+                completion_tokens: usage.completion_tokens,
+            },
+            modelId
+        );
     }
 
     static checkRateLimit(): boolean {
@@ -43,11 +73,15 @@ export class Guardrails {
     }
 
     static getUsageStats() {
+        this.resetIfNewDay();
         return {
             used: usageStore.dailyTokens,
+            promptTokens: usageStore.promptTokens,
+            completionTokens: usageStore.completionTokens,
+            estimatedUsd: usageStore.estimatedUsd,
             limit: CONFIG.MAX_DAILY_TOKENS,
             remaining: CONFIG.MAX_DAILY_TOKENS - usageStore.dailyTokens,
-            isRateLimited: usageStore.requestTimestamps.length >= CONFIG.MAX_REQUESTS_PER_MINUTE
+            isRateLimited: usageStore.requestTimestamps.length >= CONFIG.MAX_REQUESTS_PER_MINUTE,
         };
     }
 
@@ -55,6 +89,9 @@ export class Guardrails {
         const now = Date.now();
         if (now - usageStore.lastReset > CONFIG.RESET_INTERVAL_MS) {
             usageStore.dailyTokens = 0;
+            usageStore.promptTokens = 0;
+            usageStore.completionTokens = 0;
+            usageStore.estimatedUsd = 0;
             usageStore.lastReset = now;
             usageStore.requestTimestamps = [];
             console.log('[Guardrails] Daily token budget reset.');
