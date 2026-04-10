@@ -10,6 +10,27 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/
 export const OPENROUTER_MODEL = 'google/gemma-4-26b-a4b-it';
 export const OPENROUTER_DEFAULT_TEMPERATURE = 0.5;
 
+/** Public site URL for OpenRouter HTTP-Referer (required for production; avoid localhost on Vercel). */
+function getOpenRouterReferer(): string {
+    const explicit =
+        process.env.OPENROUTER_HTTP_REFERER?.trim() ||
+        process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+        process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    if (explicit) return explicit.replace(/\/$/, '');
+
+    const vercel = process.env.VERCEL_URL?.trim();
+    if (vercel) {
+        const host = vercel.replace(/^https?:\/\//i, '');
+        return `https://${host}`;
+    }
+
+    return 'http://localhost:3000';
+}
+
+function getOpenRouterTitle(): string {
+    return process.env.OPENROUTER_APP_TITLE?.trim() || 'Qualia Simulation';
+}
+
 interface Provider {
     name: string;
     url: string;
@@ -77,8 +98,8 @@ export class LLMService {
                 };
 
                 if (provider.name === 'openrouter') {
-                    headers['HTTP-Referer'] = 'http://localhost:3000';
-                    headers['X-Title'] = 'Qualia Simulation';
+                    headers['HTTP-Referer'] = getOpenRouterReferer();
+                    headers['X-Title'] = getOpenRouterTitle();
                 }
 
                 const defaultTemp =
