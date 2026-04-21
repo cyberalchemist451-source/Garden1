@@ -94,11 +94,18 @@ type RoomLightsProps = {
 export function RoomLights({ theme, origin, width, depth, ceilingHeight }: RoomLightsProps) {
     const cols = width > 20 ? 2 : 1;
     const rows = depth > 20 ? 3 : 2;
+    // Any grid cell whose center lands within this radius of the room center
+    // is discarded. The plinth is a 2.2 m cube at the origin and the
+    // ArtifactSpotlight hangs a cylinder puck directly above it; a
+    // fluorescent here would collide with that puck and occlude the
+    // spotlight's beam/emissive. Keep the cone clear.
+    const PLINTH_CLEARANCE = 1.6;
     const fixtures: [number, number][] = [];
     for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
             const x = (i - (cols - 1) / 2) * (width / cols);
             const z = (j - (rows - 1) / 2) * (depth / rows);
+            if (Math.hypot(x, z) < PLINTH_CLEARANCE) continue;
             fixtures.push([x, z]);
         }
     }
