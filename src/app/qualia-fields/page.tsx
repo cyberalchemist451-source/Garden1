@@ -47,6 +47,12 @@ export default function QualiaFieldsPage() {
                     </div>
                 </div>
                 <div className="header-right">
+                    <Link href="/qualia-fields/liminal-gallery" style={{
+                        padding: '6px 14px', background: 'rgba(179,136,255,0.15)', border: '1px solid rgba(179,136,255,0.4)',
+                        borderRadius: '4px', color: '#b388ff', fontSize: '10px', letterSpacing: '1.5px',
+                        fontFamily: 'var(--font-mono)', textDecoration: 'none', cursor: 'pointer',
+                        transition: 'all 0.2s', marginRight: '8px',
+                    }}>▶ LIMINOSITY</Link>
                     <Link href="/qualia-fields/simulation" style={{
                         padding: '6px 14px', background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.4)',
                         borderRadius: '4px', color: '#00ff88', fontSize: '10px', letterSpacing: '1.5px',
