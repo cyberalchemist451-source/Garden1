@@ -84,8 +84,8 @@ export const SCRIPTED_THEMES: Theme[] = [
         wallColor: '#2a2230',
         accentColor: '#b388ff',
         floorMaterial: 'concrete',
-        lightColor: '#c8b8ff',
-        lightIntensity: 0.75,
+        lightColor: '#d4c8ff',
+        lightIntensity: 0.95,
         ceiling: 6.2,
         font: 'fraktur',
         titleLetterSpacing: 0.05,
@@ -968,32 +968,40 @@ const PROCEDURAL_THEMES: Theme[] = [
     {
         id: 'museum-of-rust',
         name: 'Museum of Rust',
-        subtitle: 'iron remembering its ocean',
-        wallColor: '#53281a',
-        accentColor: '#e87f45',
+        subtitle: 'oxidation, from atoms to worlds',
+        wallColor: '#3e2218',
+        accentColor: '#ff8544',
         floorMaterial: 'concrete',
-        lightColor: '#ffb078',
-        lightIntensity: 0.8,
-        ceiling: 5.2,
+        lightColor: '#ffb884',
+        lightIntensity: 0.95,
+        ceiling: 6.0,
         font: 'cinzel',
+        titleLetterSpacing: 0.22,
         audioTone: {
-            baseHz: 45,
-            partials: [1, 1.5, 2.0, 3.0],
-            lfoHz: 0.04,
-            noiseCenterHz: 720,
-            noiseGain: 0.1,
+            baseHz: 42,
+            partials: [1, 1.5, 2.0, 3.0, 4.5],
+            lfoHz: 0.035,
+            noiseCenterHz: 620,
+            noiseGain: 0.09,
             bellRatio: 4.8,
-            bellEverySec: 26,
+            bellEverySec: 24,
         },
         infographic: {
             title: 'OXIDATION',
             body: [
-                'Fe + O -> Fe\u2082O\u2083',
-                'years: many',
-                'witnesses: few',
+                '4 Fe + 3 O\u2082  \u2192  2 Fe\u2082O\u2083',
                 '',
-                'everything that',
-                'held us together',
+                'SPECIMEN: Mars',
+                '  radius  3,389 km',
+                '  gravity 0.38 g',
+                '  sky     butterscotch',
+                '  soil    rusted through',
+                '',
+                'MOONS:',
+                '  Phobos  22 km   7.66 h',
+                '  Deimos  12 km  30.31 h',
+                '',
+                'a whole world',
                 'is returning home.',
             ],
         },
@@ -1685,6 +1693,7 @@ export const SOLAR_SYSTEM_THEME: Theme = {
 };
 
 // Themes pinned to specific section indices, regardless of seed.
+// -  7  : Museum of Rust (planetary oxidation; centerpiece is Mars + moons)
 // -  8  : Fractal Chapel (psychedelic milestone)
 // - 14  : Marine Biology hall
 // - 16  : The Grove (forest room - moonlit clearing, peeking watchers)
@@ -1693,7 +1702,16 @@ export const SOLAR_SYSTEM_THEME: Theme = {
 //           flanked by rows of giant stone faces; falling off drops the
 //           player into the same Mandelbrot cutscene as SECTION 022)
 // - 32  : Heliographic Hall (solar system model + the one that doesn't belong)
+//
+// museum-of-rust is also pulled OUT of the procedural rotation because
+// we promote it to a scripted Mars room; leaving it in the pool would let
+// it reappear later with a generic rust artifact and contradict the
+// pinned presentation.
+const MUSEUM_OF_RUST_THEME: Theme = PROCEDURAL_THEMES.find(
+    (t) => t.id === 'museum-of-rust',
+)!;
 export const MILESTONE_THEMES: Record<number, Theme> = {
+    7: MUSEUM_OF_RUST_THEME,
     8: FRACTAL_CHAPEL_THEME,
     14: MARINE_BIOLOGY_THEME,
     16: FOREST_GROVE_THEME,

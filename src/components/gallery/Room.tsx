@@ -10,6 +10,7 @@ import AIHistoryArtifact from './artifacts/AIHistoryArtifact';
 import EsotericArtifact from './artifacts/EsotericArtifact';
 import ProceduralArtifact from './artifacts/ProceduralArtifact';
 import MarineArtifact from './artifacts/MarineArtifact';
+import MarsArtifact from './artifacts/MarsArtifact';
 import { getSubjectArtifact } from './artifacts/SubjectArtifacts';
 import FractalRoom from './FractalRoom';
 import ForestRoom from './ForestRoom';
@@ -103,6 +104,8 @@ export default function Room({ spec, hasNext, hasPrev, behind = false }: Props) 
                 return <EsotericArtifact spec={spec} />;
             case 'marine-biology':
                 return <MarineArtifact spec={spec} />;
+            case 'museum-of-rust':
+                return <MarsArtifact spec={spec} />;
             default: {
                 // For procedural themes with a strong concrete subject
                 // (library, bone orchard, mirror loop, etc.) we render a
