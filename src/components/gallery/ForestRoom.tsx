@@ -30,7 +30,10 @@ type Props = {
 
 const TRUNK_COLOR = '#1b120c';
 const CANOPY_COLOR = '#0a1a10';
-const FIGURE_COLOR = '#030406';
+// Slightly lifted from pitch black so the figures actually receive the
+// moonlight when they peek out. Pure-black materials are invisible against
+// the equally-dark forest no matter how hard the moon is pushed.
+const FIGURE_COLOR = '#1c1f25';
 const GROUND_COLOR = '#0a140d';
 
 type TreeInstance = {
@@ -143,24 +146,30 @@ export default function ForestRoom({ spec, hasPrev, hasNext, behind = false }: P
                 <meshBasicMaterial visible={false} />
             </mesh>
 
-            {/* Moonlight: a cool directional light from high overhead */}
+            {/* Moonlight: a cool directional light from high overhead.
+                Brightened in two passes so the watchers register against the
+                forest when they lean out. The ambient floor stays low so the
+                clearing still reads as moonlit, not floodlit. */}
             {!behind ? (
                 <>
                     <directionalLight
                         position={[ox + 6, 14, oz - 4]}
-                        intensity={0.55}
+                        intensity={0.95}
                         color={theme.lightColor}
                     />
                     <hemisphereLight
-                        args={[theme.lightColor, '#02060a', 0.25]}
+                        args={[theme.lightColor, '#02060a', 0.5]}
                         position={[ox, ceilingHeight, oz]}
                     />
-                    {/* Faint fill so trunks are visible near the aisle */}
+                    {/* Wider, warmer fill anchored at the player's eye-level
+                        so trunks and figures both pick up shape detail down
+                        the aisle. */}
                     <pointLight
-                        position={[ox, 2.4, oz]}
+                        position={[ox, 2.8, oz]}
                         color={theme.lightColor}
-                        intensity={0.35}
-                        distance={18}
+                        intensity={0.6}
+                        distance={26}
+                        decay={1.4}
                     />
                 </>
             ) : null}
@@ -307,7 +316,7 @@ function Watcher({
         const peekWidth = 0.12;
         const d = Math.abs(u - peekCenter);
         const visible = Math.max(0, 1 - d / peekWidth);
-        const opacity = visible * 0.85;
+        const opacity = visible;
         if (bodyMat.current) bodyMat.current.opacity = opacity;
         if (headMat.current) headMat.current.opacity = opacity;
 
